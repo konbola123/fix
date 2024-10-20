@@ -1,0 +1,200 @@
+TCP code ----
+
+# Create a simulator object
+set ns [new Simulator]
+
+# Define nodes
+set n0 [$ns node]
+set n1 [$ns node]
+
+# Create a duplex link between n0 and n1
+$ns duplex-link $n0 $n1 2Mb 10ms DropTail
+
+# Create a TCP agent and attach it to n0
+set tcp [new Agent/TCP]
+$ns attach-agent $n0 $tcp
+
+# Create a TCP Sink agent and attach it to n1
+set sink [new Agent/TCPSink]
+$ns attach-agent $n1 $sink
+
+# Connect the TCP agent and the sink
+$ns connect $tcp $sink
+
+# Create an FTP application to generate traffic on the TCP agent
+set ftp [new Application/FTP]
+$ftp attach-agent $tcp
+
+# Define a 'finish' procedure that ends the simulation
+proc finish {} {
+    global ns
+    $ns flush-trace
+    exit 0
+}
+
+# Set up tracing
+set tracefile [open out.tr w]
+$ns trace-all $tracefile
+
+# Schedule events
+$ns at 0.1 "$ftp start"
+$ns at 5.0 "$ftp stop"
+$ns at 6.0 "finish"
+
+# Run the simulation
+$ns run
+
+
+UDP code ---
+
+# Create a simulator object
+set ns [new Simulator]
+
+# Define nodes
+set n0 [$ns node]
+set n1 [$ns node]
+
+# Create a duplex link between n0 and n1
+$ns duplex-link $n0 $n1 2Mb 10ms DropTail
+
+# Create a UDP agent and attach it to n0
+set udp [new Agent/UDP]
+$ns attach-agent $n0 $udp
+
+# Create a Null agent (sink for UDP) and attach it to n1
+set null [new Agent/Null]
+$ns attach-agent $n1 $null
+
+# Connect the UDP agent and the Null agent
+$ns connect $udp $null
+
+# Create a CBR (Constant Bit Rate) traffic generator
+set cbr [new Application/Traffic/CBR]
+$cbr set packetSize_ 512    ;# Packet size of 512 bytes
+$cbr set interval_ 0.01     ;# Send a packet every 0.01 seconds
+$cbr attach-agent $udp      ;# Attach CBR to UDP
+
+# Define a 'finish' procedure that ends the simulation
+proc finish {} {
+    global ns
+    $ns flush-trace
+    exit 0
+}
+
+# Set up tracing
+set tracefile [open out.tr w]
+$ns trace-all $tracefile
+
+# Schedule events
+$ns at 0.1 "$cbr start"
+$ns at 5.0 "$cbr stop"
+$ns at 6.0 "finish"
+
+# Run the simulation
+$ns run
+
+
+
+
+Implementation of Half duplex in email 
+
+Server side code - 
+
+import java.io.*;
+import java.net.*;
+
+public class HalfDuplexServer {
+    public static void main(String[] args) throws IOException {
+        // Create server socket listening on port 5000
+        ServerSocket serverSocket = new ServerSocket(5000);
+        System.out.println("Server is waiting for a client...");
+
+        // Accept connection from client
+        Socket socket = serverSocket.accept();
+        System.out.println("Client connected!");
+
+        // Create input and output streams
+        BufferedReader input = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+        PrintWriter output = new PrintWriter(socket.getOutputStream(), true);
+        BufferedReader consoleInput = new BufferedReader(new InputStreamReader(System.in));
+
+        String clientMessage, serverMessage;
+
+        // Half-duplex communication loop
+        while (true) {
+            // Read message from client
+            clientMessage = input.readLine();
+            System.out.println("Client: " + clientMessage);
+
+            // If client says "bye", break the loop
+            if (clientMessage.equalsIgnoreCase("bye")) {
+                break;
+            }
+
+            // Server responds (turn-based)
+            System.out.print("Server: ");
+            serverMessage = consoleInput.readLine();
+            output.println(serverMessage);
+
+            // If server says "bye", break the loop
+            if (serverMessage.equalsIgnoreCase("bye")) {
+                break;
+            }
+        }
+
+        // Close resources
+        input.close();
+        output.close();
+        socket.close();
+        serverSocket.close();
+    }
+}
+
+
+Client side code -- 
+
+import java.io.*;
+import java.net.*;
+
+public class HalfDuplexClient {
+    public static void main(String[] args) throws IOException {
+        // Connect to the server (make sure the server IP/hostname is correct)
+        Socket socket = new Socket("localhost", 5000);  // Change "localhost" to the server IP if running on different computers
+        System.out.println("Connected to server!");
+
+        // Create input and output streams
+        BufferedReader input = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+        PrintWriter output = new PrintWriter(socket.getOutputStream(), true);
+        BufferedReader consoleInput = new BufferedReader(new InputStreamReader(System.in));
+
+        String clientMessage, serverMessage;
+
+        // Half-duplex communication loop
+        while (true) {
+            // Client's turn to send message
+            System.out.print("Client: ");
+            clientMessage = consoleInput.readLine();
+            output.println(clientMessage);
+
+            // If client says "bye", break the loop
+            if (clientMessage.equalsIgnoreCase("bye")) {
+                break;
+            }
+
+            // Read response from server
+            serverMessage = input.readLine();
+            System.out.println("Server: " + serverMessage);
+
+            // If server says "bye", break the loop
+            if (serverMessage.equalsIgnoreCase("bye")) {
+                break;
+            }
+        }
+
+        // Close resources
+        input.close();
+        output.close();
+        socket.close();
+    }
+}
+
